@@ -25,8 +25,16 @@ export async function initBabyStation(
     let peer: Peer | null = null;
     let activeCall: MediaConnection | null = null;
     let deviceChangeHandler: (() => void) | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isCleaningUp = false;
+    const retryDelay = 5000;
 
     const cleanup = () => {
+        isCleaningUp = true;
+        if (retryTimeout) {
+            clearTimeout(retryTimeout);
+            retryTimeout = null;
+        }
         if (deviceChangeHandler) {
             navigator.mediaDevices.removeEventListener('devicechange', deviceChangeHandler);
             deviceChangeHandler = null;
@@ -221,13 +229,44 @@ export async function initBabyStation(
         }
 
         updateStatus('Connecting...', false);
+        initPeer();
+    } catch (err) {
+        console.error('Failed to get local stream', err);
+        updateStatus('Camera error: ' + (err as Error).message, false);
+    }
 
+    /**
+     * Restores the signaling connection once the retry delay passes.
+     * Parents place new calls through the server, so the baby station
+     * stays registered under the room ID for its whole lifetime.
+     */
+    function scheduleRecovery() {
+        if (isCleaningUp || retryTimeout) {
+            return;
+        }
+        retryTimeout = setTimeout(() => {
+            retryTimeout = null;
+            if (!peer || peer.destroyed) {
+                // An `unavailable-id` error destroys the peer; the server frees
+                // the ID once it notices the old connection is gone.
+                initPeer();
+            } else if (peer.disconnected) {
+                peer.reconnect();
+            }
+        }, retryDelay);
+    }
+
+    function initPeer() {
         peer = new Peer(roomId);
 
         peer.on('open', (id) => {
-            updateStatus('Waiting for parent...', true);
+            if (activeCall) {
+                updateStatus('Streaming Live', true);
+            } else {
+                updateStatus('Waiting for parent...', true);
+                settingsDrawer.classList.add('open');
+            }
             idDisplayEl.classList.remove('hidden');
-            settingsDrawer.classList.add('open');
             roomIdEl.textContent = id;
 
             const url = new URL(window.location.href);
@@ -270,13 +309,16 @@ export async function initBabyStation(
             call.answer(stream!);
         });
 
+        peer.on('disconnected', () => {
+            console.log('Disconnected from signaling server');
+            scheduleRecovery();
+        });
+
         peer.on('error', (err) => {
             console.error(err);
-            updateStatus('Error: ' + err.type, false);
+            updateStatus('Error: ' + err.type + '. Reconnecting...', false);
+            scheduleRecovery();
         });
-    } catch (err) {
-        console.error('Failed to get local stream', err);
-        updateStatus('Camera error: ' + (err as Error).message, false);
     }
 
     return { cleanup };
