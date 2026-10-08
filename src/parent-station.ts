@@ -33,6 +33,7 @@ export async function initParentStation(
     let motionDecayHandle: DecayingMeterHandle | null = null;
     let motionDetectorHandle: MotionDetectorHandle | null = null;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let callWatchdog: ReturnType<typeof setTimeout> | null = null;
     let squirmingAlertTimeout: ReturnType<typeof setTimeout> | null = null;
     let cryingAlertTimeout: ReturnType<typeof setTimeout> | null = null;
     let isConnected = false;
@@ -44,6 +45,7 @@ export async function initParentStation(
             clearTimeout(retryTimeout);
             retryTimeout = null;
         }
+        clearCallWatchdog();
         if (squirmingAlertTimeout) {
             clearTimeout(squirmingAlertTimeout);
             squirmingAlertTimeout = null;
@@ -358,6 +360,8 @@ export async function initParentStation(
 
     const minDelay = 5000;
     const randomFactor = 0.5;
+    const callSetupTimeoutMs = 15000;
+    const stallTimeoutMs = 10000;
 
     function getNextDelay(): number {
         return minDelay + Math.random() * randomFactor * minDelay;
@@ -403,8 +407,40 @@ export async function initParentStation(
         retryTimeout = setTimeout(attemptCall, delay);
     }
 
+    function clearCallWatchdog() {
+        if (callWatchdog) {
+            clearTimeout(callWatchdog);
+            callWatchdog = null;
+        }
+    }
+
+    function armCallWatchdog(delay: number, reason: string) {
+        clearCallWatchdog();
+        callWatchdog = setTimeout(() => dropCall(reason), delay);
+    }
+
+    /**
+     * Closes the active call and schedules a redial. Clears `activeCall`
+     * before closing so the call's own `close` handler treats it as stale.
+     */
+    function dropCall(reason: string) {
+        console.warn(`Dropping call: ${reason}`);
+        clearCallWatchdog();
+        const call = activeCall;
+        activeCall = null;
+        isConnected = false;
+        call?.close();
+        scheduleRetry();
+    }
+
     function attemptCall() {
-        if (!peer || peer.destroyed) {
+        // Never redial over a live call; dropCall() clears isConnected first.
+        if (isConnected) {
+            return;
+        }
+
+        // A disconnected peer stays closed until reconnected, so build a new one.
+        if (!peer || peer.destroyed || peer.disconnected) {
             initPeer();
             return;
         }
@@ -418,10 +454,29 @@ export async function initParentStation(
 
         statusEl.textContent = `Calling Baby Station...`;
 
-        const stream = createDummyStream();
-        activeCall = peer.call(roomId, stream);
+        if (activeCall) {
+            const previousCall = activeCall;
+            activeCall = null;
+            previousCall.close();
+        }
 
-        activeCall.on('stream', (incomingStream) => {
+        const stream = createDummyStream();
+        const call = peer.call(roomId, stream);
+        activeCall = call;
+        armCallWatchdog(callSetupTimeoutMs, 'Baby Station did not answer');
+
+        call.on('iceStateChanged', (state) => {
+            if (call !== activeCall) return;
+            if (state === 'disconnected') {
+                armCallWatchdog(stallTimeoutMs, 'Media connection stalled');
+            } else if (isConnected && (state === 'connected' || state === 'completed')) {
+                clearCallWatchdog();
+            }
+        });
+
+        call.on('stream', (incomingStream) => {
+            if (call !== activeCall) return;
+            clearCallWatchdog();
             isConnected = true;
             remoteStream = incomingStream;
             console.log('Received stream tracks:', incomingStream.getTracks().map(t => `${t.kind}: ${t.label} (enabled: ${t.enabled})`));
@@ -439,20 +494,20 @@ export async function initParentStation(
                 });
         });
 
-        activeCall.on('close', () => {
-            isConnected = false;
-            scheduleRetry();
+        call.on('close', () => {
+            if (call === activeCall) dropCall('Call closed');
         });
 
-        activeCall.on('error', (err) => {
+        call.on('error', (err) => {
             console.error('Call error:', err);
-            isConnected = false;
-            scheduleRetry();
+            if (call === activeCall) dropCall('Call error');
         });
     }
 
     function initPeer() {
         if (peer) {
+            // Detach first so the old peer's teardown events cannot schedule retries.
+            peer.removeAllListeners();
             peer.destroy();
         }
 
@@ -472,6 +527,10 @@ export async function initParentStation(
 
         peer.on('error', (err) => {
             console.error('Peer error:', err);
+            // A live call does not depend on the signaling server.
+            if (isConnected) {
+                return;
+            }
             statusEl.textContent = `Peer error: ${err.type}. Retrying...`;
             scheduleRetry();
         });
