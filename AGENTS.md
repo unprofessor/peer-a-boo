@@ -68,7 +68,7 @@ peer-a-boo/
 ```bash
 bun run dev          # HTTP dev server
 bun run dev:https    # HTTPS dev server (for LAN/mobile testing)
-bun run build        # tsc + vite build
+bun run build        # vitest run + tsc + vite build
 bun run test -- --run  # vitest (no watch mode - prevents bash timeout)
 bun run preview      # Preview production build
 ```

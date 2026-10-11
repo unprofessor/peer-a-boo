@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:https": "node ./scripts/ensure-dev-cert.mjs && cross-env DEV_HTTPS=1 DEV_HTTPS_CERT=certs/dev.cert.pem DEV_HTTPS_KEY=certs/dev.key.pem vite",
-    "build": "tsc && vite build",
+    "build": "vitest run && tsc && vite build",
     "preview": "vite preview",
     "test": "vitest"
   },

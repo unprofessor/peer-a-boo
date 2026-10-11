@@ -4,11 +4,19 @@ import { vi } from 'vitest';
  * Test double for the `peerjs` module. Use it with
  * `vi.mock('peerjs', () => import('./fake-peerjs'))`.
  *
- * The state transitions mirror PeerJS 1.5: losing the signaling socket
- * disconnects the peer without destroying it, an error before the first
- * `open` destroys it, and closing a media connection that never opened
- * emits no `close` event.
+ * The state transitions mirror the PeerJS release in `PEERJS_VERSION`:
+ * - losing the signaling socket disconnects the peer without destroying it;
+ * - an error before the first `open` destroys the peer;
+ * - closing a media connection that never opened emits no `close` event;
+ * - a media connection emits `iceStateChanged` on every ICE state change.
  */
+
+/**
+ * The PeerJS version this fake models. The build fails when the installed
+ * version differs. Re-check each transition above against the new release's
+ * source before changing this value.
+ */
+export const PEERJS_VERSION = '1.5.5';
 
 type Listener = (...args: any[]) => void;
 
