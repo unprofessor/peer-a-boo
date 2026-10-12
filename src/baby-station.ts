@@ -1,7 +1,7 @@
 import { Peer } from 'peerjs';
 import type { MediaConnection } from 'peerjs';
 import QRCode from 'qrcode';
-import { requestWakeLock, stopMediaStream, enumerateMediaDevices, querySelectorOrThrow } from './utils';
+import { requestWakeLock, stopMediaStream, enumerateMediaDevices, querySelectorOrThrow, peerServerOptions } from './utils';
 
 /**
  * Handle for cleaning up the baby station's resources.
@@ -257,7 +257,7 @@ export async function initBabyStation(
     }
 
     function initPeer() {
-        peer = new Peer(roomId);
+        peer = new Peer(roomId, peerServerOptions());
 
         peer.on('open', (id) => {
             if (activeCall) {

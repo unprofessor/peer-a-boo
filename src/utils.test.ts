@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
     createAudioLevelMeter,
     enumerateMediaDevices,
+    peerServerOptions,
     querySelectorOrThrow,
     requestWakeLock,
     stopMediaStream,
@@ -227,5 +228,29 @@ describe('querySelectorOrThrow', () => {
         expect(result).toBe(target);
         expect(parentSpy).toHaveBeenCalledWith('#inside');
         expect(documentSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('peerServerOptions', () => {
+    test('returns no options when no host is configured', () => {
+        expect(peerServerOptions({ VITE_PEER_PORT: '9000' })).toEqual({});
+    });
+
+    test('maps every configured variable', () => {
+        expect(peerServerOptions({
+            VITE_PEER_HOST: 'localhost',
+            VITE_PEER_PORT: '9000',
+            VITE_PEER_PATH: '/signal',
+            VITE_PEER_SECURE: 'false',
+        })).toEqual({ host: 'localhost', port: 9000, path: '/signal', secure: false });
+    });
+
+    test('leaves out unset variables so PeerJS keeps its defaults', () => {
+        expect(peerServerOptions({ VITE_PEER_HOST: 'localhost' })).toEqual({ host: 'localhost' });
+    });
+
+    test('rejects a port that is not a number', () => {
+        expect(() => peerServerOptions({ VITE_PEER_HOST: 'localhost', VITE_PEER_PORT: 'nine' }))
+            .toThrow('VITE_PEER_PORT is not a port number: nine');
     });
 });

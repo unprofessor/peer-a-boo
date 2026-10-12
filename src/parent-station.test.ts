@@ -54,6 +54,7 @@ afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
 });
 
 describe('parent station reconnection', () => {
@@ -128,5 +129,16 @@ describe('parent station reconnection', () => {
 
         expect(secondCall.close).not.toHaveBeenCalled();
         expect(peers[0].calls).toHaveLength(2);
+    });
+});
+
+describe('parent station signaling server', () => {
+    test('connects to the server named by VITE_PEER_*', async () => {
+        vi.stubEnv('VITE_PEER_HOST', 'localhost');
+        vi.stubEnv('VITE_PEER_PORT', '9000');
+
+        await startParent();
+
+        expect(peers[0].options).toEqual({ host: 'localhost', port: 9000 });
     });
 });

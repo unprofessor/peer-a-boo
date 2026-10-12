@@ -62,6 +62,32 @@ Replace `dev:https` with `dev` if you only need HTTP. Visit
 `https://<your-lan-ip>:5173` (or `http://` if not using HTTPS) from the other
 device and accept the certificate warning when prompted.
 
+### Optional: Local Signaling Server
+
+By default both stations register with the public PeerJS server
+(`0.peerjs.com`). To use a local one instead:
+
+1. Start the signaling server on port 9000:
+
+   ```bash
+   bun run signal
+   ```
+
+2. Point the app at it in `.env.local` (gitignored), then restart Vite:
+
+   ```bash
+   VITE_PEER_HOST=localhost
+   VITE_PEER_PORT=9000
+   ```
+
+`VITE_PEER_PATH` and `VITE_PEER_SECURE` (`true`/`false`) are also read. When
+`VITE_PEER_SECURE` is unset, the app uses `wss` exactly when the page itself is
+served over HTTPS.
+
+The server releases a room ID 15 seconds after its holder stops sending
+heartbeats (`--alive_timeout 15000`), instead of the default 60 seconds, so a
+reloaded Baby Station can reclaim its room quickly.
+
 ## How to Use
 
 1. **Baby Station**:

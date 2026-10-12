@@ -107,10 +107,17 @@ export class FakePeer extends FakeEmitter {
     });
 
     readonly id: string | undefined;
+    readonly options: object | undefined;
 
-    constructor(id?: string) {
+    /** Accepts both `new Peer(options?)` and `new Peer(id, options?)`. */
+    constructor(idOrOptions?: string | object, options?: object) {
         super();
-        this.id = id;
+        if (typeof idOrOptions === 'string') {
+            this.id = idOrOptions;
+            this.options = options;
+        } else {
+            this.options = idOrOptions;
+        }
         peers.push(this);
     }
 

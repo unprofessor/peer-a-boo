@@ -8,6 +8,7 @@
     "dev:https": "node ./scripts/ensure-dev-cert.mjs && cross-env DEV_HTTPS=1 DEV_HTTPS_CERT=certs/dev.cert.pem DEV_HTTPS_KEY=certs/dev.key.pem vite",
     "build": "vitest run && tsc && vite build",
     "preview": "vite preview",
+    "signal": "peerjs --port 9000 --alive_timeout 15000",
     "test": "vitest"
   },
   "devDependencies": {
@@ -16,6 +17,7 @@
     "@types/qrcode": "^1.5.6",
     "cross-env": "^10.1.0",
     "jsdom": "^24.1.0",
+    "peer": "1.0.2",
     "selfsigned": "^4.0.0",
     "typescript": "~5.9.3",
     "typescript-language-server": "^5.1.3",

@@ -1,3 +1,44 @@
+import type { PeerOptions } from 'peerjs';
+
+/**
+ * The `VITE_PEER_*` build variables that select a signaling server.
+ */
+export type PeerServerEnv = Pick<
+    ImportMetaEnv,
+    'VITE_PEER_HOST' | 'VITE_PEER_PORT' | 'VITE_PEER_PATH' | 'VITE_PEER_SECURE'
+>;
+
+/**
+ * Builds PeerJS options for the signaling server named by `VITE_PEER_*`.
+ * Returns no options when `VITE_PEER_HOST` is unset, so PeerJS uses its cloud
+ * server. Leaves out unset variables: PeerJS spreads options over its
+ * defaults, so an `undefined` value would erase the default.
+ * @param env - Build variables; defaults to `import.meta.env`
+ * @returns Options for `new Peer(...)`
+ * @throws Error if `VITE_PEER_PORT` is not a port number
+ */
+export function peerServerOptions(env: PeerServerEnv = import.meta.env): PeerOptions {
+    if (!env.VITE_PEER_HOST) {
+        return {};
+    }
+
+    const options: PeerOptions = { host: env.VITE_PEER_HOST };
+    if (env.VITE_PEER_PORT) {
+        const port = Number(env.VITE_PEER_PORT);
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+            throw new Error(`VITE_PEER_PORT is not a port number: ${env.VITE_PEER_PORT}`);
+        }
+        options.port = port;
+    }
+    if (env.VITE_PEER_PATH) {
+        options.path = env.VITE_PEER_PATH;
+    }
+    if (env.VITE_PEER_SECURE) {
+        options.secure = env.VITE_PEER_SECURE === 'true';
+    }
+    return options;
+}
+
 /**
  * Handle returned by requestWakeLock for releasing the wake lock.
  */

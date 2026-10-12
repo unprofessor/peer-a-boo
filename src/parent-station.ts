@@ -1,6 +1,6 @@
 import { Peer } from 'peerjs';
 import type { MediaConnection } from 'peerjs';
-import { requestWakeLock, stopMediaStream, createAudioLevelMeter, createDecayingMeter, querySelectorOrThrow } from './utils';
+import { requestWakeLock, stopMediaStream, createAudioLevelMeter, createDecayingMeter, querySelectorOrThrow, peerServerOptions } from './utils';
 import type { AudioLevelMeterHandle, DecayingMeterHandle } from './utils';
 import { createMotionDetector } from './motion-detection';
 import type { MotionDetectorHandle } from './motion-detection';
@@ -511,7 +511,7 @@ export async function initParentStation(
             peer.destroy();
         }
 
-        peer = new Peer();
+        peer = new Peer(peerServerOptions());
 
         peer.on('open', () => {
             console.log('Connected to signaling server');

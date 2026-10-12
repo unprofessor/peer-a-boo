@@ -71,6 +71,7 @@ bun run dev:https    # HTTPS dev server (for LAN/mobile testing)
 bun run build        # vitest run + tsc + vite build
 bun run test -- --run  # vitest (no watch mode - prevents bash timeout)
 bun run preview      # Preview production build
+bun run signal       # Local PeerJS signaling server on :9000 (set VITE_PEER_HOST/PORT)
 ```
 
 ## NOTES
